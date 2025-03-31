@@ -77,6 +77,10 @@ lexer_destroy :: proc(self: ^Lexer) {
     return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
 }
 
+@private is_alpha_numeric :: proc(r: rune) -> bool {
+    return is_alpha(r) || is_digit(r)
+}
+
 @private lexer_parse_number :: proc(self: ^Lexer) -> (num: f64, err: Error) {
     rr := lexer_next_char(self) or_return
     if !is_digit(rr) {
@@ -109,7 +113,7 @@ lexer_destroy :: proc(self: ^Lexer) {
     }
 
     cur_err: Error
-    for is_alpha(rr) && cur_err == nil {
+    for is_alpha_numeric(rr) && cur_err == nil {
         rr, cur_err = lexer_next_char(self)
     }
     lexer_prev_char(self)
