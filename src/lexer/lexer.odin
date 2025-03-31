@@ -142,10 +142,12 @@ lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
     case: lexer_prev_char(self)
     }
 
-    if tok.value, err = lexer_parse_number(self); err == nil {
-        tok.kind = .Number
-    } else if tok.ident, err = lexer_parse_ident(self); err == nil {
-        tok.kind = .Ident
+    // Reader errors should propagate
+    tok.value, err = lexer_parse_number(self)
+    if err == nil do tok.kind = .Number
+    else if _, is_lexer_error := err.(Lexer_Error); is_lexer_error {
+        tok.ident, err = lexer_parse_ident(self)
+        if err == nil do tok.kind = .Ident
     }
 
     return
