@@ -53,6 +53,11 @@ lexer_destroy :: proc(self: ^Lexer) {
     return strings.reader_seek(&self.source_reader, 0, .Current)
 }
 
+@private lexer_go_back_to_byte :: proc(self: ^Lexer, cur: i64) -> (err: Error) {
+    _, err = strings.reader_seek(&self.source_reader, cur, .Start)
+    return
+}
+
 @private lexer_has_next_rune :: proc(self: ^Lexer) -> bool {
     return strings.reader_length(&self.source_reader) > 0
 }
@@ -82,18 +87,25 @@ lexer_destroy :: proc(self: ^Lexer) {
 }
 
 @private lexer_parse_number :: proc(self: ^Lexer) -> (num: f64, err: Error) {
-    rr := lexer_next_char(self) or_return
+    num_start := lexer_get_current_byte(self) or_return
+    rr        := lexer_next_char(self) or_return
     if !is_digit(rr) {
+        lexer_prev_char(self) or_return
         err = .Unknown_Token
-        lexer_prev_char(self)
         return
     }
 
     cur_err: Error
-    for is_digit(rr) && err == nil {
+    for is_digit(rr) && cur_err == nil {
         num *= 10
         num += cast(f64)rr - '0'
         rr, cur_err = lexer_next_char(self)
+    }
+
+    if cur_err == nil && !strings.is_separator(rr) {
+        lexer_go_back_to_byte(self, num_start) or_return
+        err = .Unknown_Token
+        return
     }
 
     lexer_prev_char(self)
