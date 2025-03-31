@@ -19,7 +19,7 @@ print_node :: proc(node: ^parse.Node, current_precedence: uint = ~cast(uint)0) {
     case parse.Node_Binop:
         assoc          := parse.get_operator_assoc(x.op)
         new_precedence := parse.get_operator_precedence(x.op)
-        is_ambiguous   := new_precedence > current_precedence || assoc > 0
+        is_ambiguous   := new_precedence > current_precedence || assoc != .Right
         if is_ambiguous do fmt.print("(")
         print_node(x.lhs, new_precedence)
         switch x.op {

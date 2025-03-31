@@ -127,7 +127,7 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
 
         // Consume operator
         parser_consume_token(self)
-        new_precedence += get_operator_assoc(binop.op)
+        new_precedence += cast(uint)get_operator_assoc(binop.op)
         binop.rhs       = parser_parse_expr(self, new_precedence) or_return
 
         next_lhs := new(Node)

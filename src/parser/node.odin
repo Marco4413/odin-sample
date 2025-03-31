@@ -63,12 +63,18 @@ get_operator_precedence :: proc(operator: Binop_Kind) -> uint {
     }
 }
 
-get_operator_assoc :: proc(operator: Binop_Kind) -> uint {
+Binop_Assoc :: enum uint {
+    Right = 0,
+    Left  = 1,
+}
+
+get_operator_assoc :: proc(operator: Binop_Kind) -> Binop_Assoc {
     switch operator {
     case .Add, .Sub,
          .Mul, .Div:
-        return 0
-    case .Pow: return 1
+        return .Right
+    case .Pow:
+        return .Left
     case: unreachable()
     }
 }
