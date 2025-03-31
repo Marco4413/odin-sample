@@ -41,7 +41,7 @@ Node :: union {
 
 @(private="package")
 node_fun_call_push_arg :: proc(self: ^Node_Fun_Call, node: ^Node) {
-    arg      := new(Fun_Arg)
+    arg     := new(Fun_Arg)
     arg.node = node
     list.push_back(&self.args, &arg.link)
 }
