@@ -139,13 +139,9 @@ lexer_destroy :: proc(self: ^Lexer) {
 lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
     lexer_trim_left(self) or_return
     tok.loc = self.loc
-    defer if self.loc.line == tok.loc.line {
-        // We must have advanced, we should not go back
-        assert(self.loc.char >= tok.loc.char)
-        tok.loc.span = self.loc.char - tok.loc.char
-    }
 
     rr := lexer_next_char(self) or_return
+    tok.loc.span = 1
     switch rr {
     case '+': tok.kind = .Add; return
     case '-': tok.kind = .Sub; return
@@ -157,6 +153,7 @@ lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
     case ',': tok.kind = .Comma;         return
     case: lexer_prev_char(self)
     }
+    tok.loc.span = 0
 
     // Reader errors should propagate
     tok.value, err = lexer_parse_number(self)
@@ -164,6 +161,11 @@ lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
     else if _, is_lexer_error := err.(Lexer_Error); is_lexer_error {
         tok.ident, err = lexer_parse_ident(self)
         if err == nil do tok.kind = .Ident
+    }
+
+    if self.loc.line == tok.loc.line {
+        assert(self.loc.char >= tok.loc.char)
+        tok.loc.span = self.loc.char - tok.loc.char
     }
 
     return
