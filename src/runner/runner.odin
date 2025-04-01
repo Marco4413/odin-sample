@@ -2,7 +2,8 @@ package runner
 
 import "core:math"
 
-import "../parser"
+import lex "../lexer"
+import     "../parser"
 
 Runner_Error :: enum {
     None,
@@ -11,8 +12,16 @@ Runner_Error :: enum {
     Undefined_Function,
 }
 
+Localized_Runner_Error :: struct {
+    err: Runner_Error,
+    loc: lex.Loc,
+}
+
 Result :: parser.Node_Number
-Error  :: Runner_Error
+Error  :: union {
+    Runner_Error,
+    Localized_Runner_Error,
+}
 
 exec :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: Error) {
     if expr == nil {
@@ -26,7 +35,7 @@ exec :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: Error
     case parser.Node_Var:
         var, found := ctx.variables[x.var_name]
         if !found {
-            err = .Undefined_Variable
+            err = Localized_Runner_Error{ .Undefined_Variable, x.loc }
             return
         }
 
@@ -42,7 +51,7 @@ exec :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: Error
     case parser.Node_Fun_Call:
         fun, found := ctx.functions[x.func_name]
         if !found {
-            err = .Undefined_Function
+            err = Localized_Runner_Error{ .Undefined_Function, x.loc }
             return
         }
 

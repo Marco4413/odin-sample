@@ -111,8 +111,15 @@ main :: proc() {
     run.exec_context_set_function(&exec_ctx, "max", math_max)
 
     res, run_err := run.exec(&exec_ctx, expr_node)
-    if run_err != nil {
-        fmt.printfln("Runner Error: {}", run_err)
+    switch x in run_err {
+    case run.Runner_Error:
+        fmt.printfln("Runner Error: {}", x)
+        return
+    case run.Localized_Runner_Error:
+        fmt.printfln("Runner Error: {}", x.err)
+        // FIXME: Not handling multiple lines, though it's not necessary
+        fmt.printfln("'{}'", expr_source)
+        print_cursor(x.loc, 1)
         return
     }
 
