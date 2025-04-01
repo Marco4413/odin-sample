@@ -21,17 +21,18 @@ Node_Binop :: struct {
     rhs: ^Node,
 }
 
-Fun_Args_Iterator :: list.Iterator(Fun_Arg)
-
 Fun_Arg :: struct {
     link: list.Node,
     node: ^Node,
 }
 
+Fun_Args :: distinct list.List
+Fun_Args_Iterator :: list.Iterator(Fun_Arg)
+
 Node_Fun_Call :: struct {
     loc: lex.Loc,
     func_name: string,
-    args: list.List,
+    args: Fun_Args,
 }
 
 Node :: union {
@@ -45,11 +46,11 @@ Node :: union {
 node_fun_call_push_arg :: proc(self: ^Node_Fun_Call, node: ^Node) {
     arg     := new(Fun_Arg)
     arg.node = node
-    list.push_back(&self.args, &arg.link)
+    list.push_back(cast(^list.List)&self.args, &arg.link)
 }
 
 node_fun_call_iterator_args :: proc(self: ^Node_Fun_Call) -> Fun_Args_Iterator {
-    return list.iterator_head(self.args, Fun_Arg, "link")
+    return list.iterator_head(cast(list.List)self.args, Fun_Arg, "link")
 }
 
 node_fun_call_iterate_args :: proc(iterator: ^Fun_Args_Iterator) -> (ptr: ^Fun_Arg, ok: bool) {
