@@ -99,6 +99,21 @@ lexer_destroy :: proc(self: ^Lexer) {
         rr, cur_err = lexer_next_char(self)
     }
 
+    if rr == '.' && cur_err == nil {
+        acc: f64 = 0
+        exp: f64 = 0.1
+
+        rr, cur_err = lexer_next_char(self)
+        for unicode.is_digit(rr) && cur_err == nil {
+            acc += cast(f64)rr - '0'
+            acc *= 10
+            exp /= 10
+            rr, cur_err = lexer_next_char(self)
+        }
+
+        num += acc * exp
+    }
+
     if cur_err == nil && is_identifier_continuation(rr) {
         lexer_go_back_to_byte(self, num_start) or_return
         err = .Unknown_Token
