@@ -21,13 +21,12 @@ Node_Binop :: struct {
     rhs: ^Node,
 }
 
-Fun_Arg :: struct {
+Fun_Args :: distinct list.List
+Fun_Args_Iterator :: list.Iterator(Fun_Args_Item)
+Fun_Args_Item :: struct {
     link: list.Node,
     node: ^Node,
 }
-
-Fun_Args :: distinct list.List
-Fun_Args_Iterator :: list.Iterator(Fun_Arg)
 
 Node_Fun_Call :: struct {
     loc: lex.Loc,
@@ -44,17 +43,20 @@ Node :: union {
 
 @(private="package")
 node_fun_call_push_arg :: proc(self: ^Node_Fun_Call, node: ^Node) {
-    arg     := new(Fun_Arg)
+    arg     := new(Fun_Args_Item)
     arg.node = node
     list.push_back(cast(^list.List)&self.args, &arg.link)
 }
 
 node_fun_call_iterator_args :: proc(self: ^Node_Fun_Call) -> Fun_Args_Iterator {
-    return list.iterator_head(cast(list.List)self.args, Fun_Arg, "link")
+    return list.iterator_head(cast(list.List)self.args, Fun_Args_Item, "link")
 }
 
-node_fun_call_iterate_args :: proc(iterator: ^Fun_Args_Iterator) -> (ptr: ^Fun_Arg, ok: bool) {
-    return list.iterate_next(iterator)
+node_fun_call_iterate_args :: proc(iterator: ^Fun_Args_Iterator) -> (ptr: ^Node, ok: bool) {
+    fun_arg := list.iterate_next(iterator) or_return
+    ptr = fun_arg.node
+    ok  = true
+    return
 }
 
 get_operator_precedence :: proc(operator: Binop_Kind) -> uint {

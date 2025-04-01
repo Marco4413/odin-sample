@@ -2,7 +2,6 @@ package runner
 
 import "../parser"
 
-Fun_Arg           :: parser.Fun_Arg
 Fun_Args_Iterator :: parser.Fun_Args_Iterator
 fun_args_iterate  :: parser.node_fun_call_iterate_args
 

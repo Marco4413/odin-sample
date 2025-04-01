@@ -39,10 +39,10 @@ print_node :: proc(node: ^parse.Node, current_precedence: uint = ~cast(uint)0) {
 
         args_iterator := parse.node_fun_call_iterator_args(&x)
         if first_arg, ok := parse.node_fun_call_iterate_args(&args_iterator); ok {
-            print_node(first_arg.node)
+            print_node(first_arg)
             for arg in parse.node_fun_call_iterate_args(&args_iterator) {
                 fmt.print(", ")
-                print_node(arg.node)
+                print_node(arg)
             }
         }
 
@@ -58,8 +58,8 @@ print_cursor :: proc(loc: lex.Loc, left_pad: uint = 0) {
 
 math_min :: proc(ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: run.Result, err: run.Error) {
     res = math.INF_F64
-    for x in run.fun_args_iterate(args) {
-        val := run.exec(ctx, x.node) or_return
+    for arg in run.fun_args_iterate(args) {
+        val := run.exec(ctx, arg) or_return
         if val < res do res = val
     }
 
@@ -68,8 +68,8 @@ math_min :: proc(ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: 
 
 math_max :: proc(ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: run.Result, err: run.Error) {
     res = math.NEG_INF_F64
-    for x in run.fun_args_iterate(args) {
-        val := run.exec(ctx, x.node) or_return
+    for arg in run.fun_args_iterate(args) {
+        val := run.exec(ctx, arg) or_return
         if val > res do res = val
     }
 
