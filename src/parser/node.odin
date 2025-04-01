@@ -7,6 +7,7 @@ import lex "../lexer"
 Node_Number :: f64
 
 Node_Var :: struct {
+    loc: lex.Loc,
     var_name: string,
 }
 
@@ -28,6 +29,7 @@ Fun_Arg :: struct {
 }
 
 Node_Fun_Call :: struct {
+    loc: lex.Loc,
     func_name: string,
     args: list.List,
 }

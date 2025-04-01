@@ -53,6 +53,7 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
         }
     } else if open_parenth.kind == .Ident {
         func_node: Node_Fun_Call
+        func_node.loc       = open_parenth.loc
         func_node.func_name = strings.clone(open_parenth.ident)
         parser_consume_token(self)
 
@@ -61,6 +62,7 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
         if lex_err == .EOF || open_parenth.kind != .Open_Parenth {
             // It's a variable
             var_node: Node_Var
+            var_node.loc      = func_node.loc
             var_node.var_name = func_node.func_name
             node  = new(Node) or_return
             node^ = var_node
