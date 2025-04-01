@@ -57,26 +57,11 @@ node_fun_call_iterate_args :: proc(iterator: ^Fun_Args_Iterator) -> (ptr: ^Fun_A
 }
 
 get_operator_precedence :: proc(operator: Binop_Kind) -> uint {
+    // NOTE: 0 should not be used by any operator
     switch operator {
-    case .Add, .Sub: return 0
-    case .Mul, .Div: return 1
-    case .Pow: return 2
-    case: unreachable()
-    }
-}
-
-Binop_Assoc :: enum uint {
-    Right = 0,
-    Left  = 1,
-}
-
-get_operator_assoc :: proc(operator: Binop_Kind) -> Binop_Assoc {
-    switch operator {
-    case .Add, .Sub,
-         .Mul, .Div:
-        return .Right
-    case .Pow:
-        return .Left
+    case .Add, .Sub: return 1
+    case .Mul, .Div: return 2
+    case .Pow: return 3
     case: unreachable()
     }
 }

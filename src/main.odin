@@ -11,15 +11,18 @@ import parse "parser"
 import run   "runner"
 
 print_node :: proc(node: ^parse.Node, current_precedence: uint = ~cast(uint)0) {
+    is_ambiguous_operator :: proc(op: parse.Binop_Kind) -> bool {
+        return op == .Pow
+    }
+
     switch &x in node {
     case parse.Node_Number:
         fmt.print(x)
     case parse.Node_Var:
         fmt.print(x.var_name)
     case parse.Node_Binop:
-        assoc          := parse.get_operator_assoc(x.op)
         new_precedence := parse.get_operator_precedence(x.op)
-        is_ambiguous   := new_precedence > current_precedence || assoc != .Right
+        is_ambiguous   := new_precedence > current_precedence || is_ambiguous_operator(x.op)
         if is_ambiguous do fmt.print("(")
         print_node(x.lhs, new_precedence)
         switch x.op {

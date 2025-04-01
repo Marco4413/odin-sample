@@ -124,13 +124,14 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
         // On invalid operator stop parsing
         binop.op        = tok_to_binop_type(tok_operator.kind) or_break
         new_precedence := get_operator_precedence(binop.op)
-        // If new prec. is lower that the current one go back to the parent call
-        if new_precedence < current_precedence do break
+        // If new prec. is lower or equal to the current one go back to the parent call
+        // Going back to the previous call on equal allows us to reduce the call stack's depth
+        // Moreover, this allows In-Order Visits of the tree to go from left to right by default
+        if new_precedence <= current_precedence do break
 
         // Consume operator
         parser_consume_token(self)
-        new_precedence += cast(uint)get_operator_assoc(binop.op)
-        binop.rhs       = parser_parse_expr(self, new_precedence) or_return
+        binop.rhs = parser_parse_expr(self, new_precedence) or_return
 
         next_lhs := new(Node)
         next_lhs^ = binop
