@@ -3,6 +3,7 @@ package lexer
 import "core:io"
 import "core:mem"
 import "core:strings"
+import "core:unicode"
 
 Lexer :: struct {
     ident_allocator: mem.Dynamic_Arena,
@@ -65,7 +66,7 @@ lexer_destroy :: proc(self: ^Lexer) {
 @private lexer_trim_left :: proc(self: ^Lexer) -> (err: Error) {
     for lexer_has_next_rune(self) {
         rr := lexer_next_char(self) or_return
-        if !strings.is_space(rr) {
+        if !unicode.is_space(rr) {
             lexer_prev_char(self)
             break
         }
@@ -74,35 +75,31 @@ lexer_destroy :: proc(self: ^Lexer) {
     return
 }
 
-@private is_digit :: proc(r: rune) -> bool {
-    return r >= '0' && r <= '9'
+@private is_identifier_start :: proc(r: rune) -> bool {
+    return unicode.is_letter(r)
 }
 
-@private is_alpha :: proc(r: rune) -> bool {
-    return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
-}
-
-@private is_alpha_numeric :: proc(r: rune) -> bool {
-    return is_alpha(r) || is_digit(r)
+@private is_identifier_continuation :: proc(r: rune) -> bool {
+    return is_identifier_start(r) || unicode.is_digit(r)
 }
 
 @private lexer_parse_number :: proc(self: ^Lexer) -> (num: f64, err: Error) {
     num_start := lexer_get_current_byte(self) or_return
     rr        := lexer_next_char(self) or_return
-    if !is_digit(rr) {
+    if !unicode.is_digit(rr) {
         lexer_prev_char(self) or_return
         err = .Unknown_Token
         return
     }
 
     cur_err: Error
-    for is_digit(rr) && cur_err == nil {
+    for unicode.is_digit(rr) && cur_err == nil {
         num *= 10
         num += cast(f64)rr - '0'
         rr, cur_err = lexer_next_char(self)
     }
 
-    if cur_err == nil && !strings.is_separator(rr) {
+    if cur_err == nil && is_identifier_continuation(rr) {
         lexer_go_back_to_byte(self, num_start) or_return
         err = .Unknown_Token
         return
@@ -118,14 +115,14 @@ lexer_destroy :: proc(self: ^Lexer) {
     ident_start := lexer_get_current_byte(self) or_return
 
     rr := lexer_next_char(self) or_return
-    if !is_alpha(rr) {
+    if !is_identifier_start(rr) {
         err = .Unknown_Token
         lexer_prev_char(self)
         return
     }
 
     cur_err: Error
-    for is_alpha_numeric(rr) && cur_err == nil {
+    for is_identifier_continuation(rr) && cur_err == nil {
         rr, cur_err = lexer_next_char(self)
     }
     lexer_prev_char(self)
