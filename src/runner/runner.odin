@@ -24,6 +24,11 @@ Error  :: union {
     Localized_Runner_Error,
 }
 
+Expr_Result :: struct {
+    expr: ^parser.Node,
+    value: Result,
+}
+
 exec_expr :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: Error) {
     if expr == nil {
         err = .Nil_Node
@@ -96,12 +101,19 @@ exec_expr :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: 
     return
 }
 
-exec :: proc(ctx: ^Exec_Context, statements: parser.Statements) -> (res: Result, err: Error) {
+// res must be deleted by the calling frame
+exec :: proc(ctx: ^Exec_Context, statements: parser.Statements) -> (res: [dynamic]Expr_Result, err: Error) {
+    res = make([dynamic]Expr_Result)
+
     statements_iterator := parser.statements_iterator(statements)
     for statement in parser.statements_iterate(&statements_iterator) {
         switch &x in statement {
         case parser.Statement_Expr:
-            res = exec_expr(ctx, x.expr) or_return
+            value := exec_expr(ctx, x.expr) or_return
+            append(&res, Expr_Result{
+                expr  = x.expr,
+                value = value,
+            })
         case parser.Statement_Var:
             exec_context_set_variable(ctx, x.var_name, (exec_expr(ctx, x.expr) or_return))
         case parser.Statement_Fun:
@@ -113,7 +125,8 @@ exec :: proc(ctx: ^Exec_Context, statements: parser.Statements) -> (res: Result,
     return
 }
 
-exec_contextless :: proc(statements: parser.Statements) -> (res: Result, err: Error) {
+// res must be deleted by the calling frame
+exec_contextless :: proc(statements: parser.Statements) -> (res: [dynamic]Expr_Result, err: Error) {
     ctx: Exec_Context
     exec_context_init(&ctx)
     defer exec_context_destroy(&ctx)

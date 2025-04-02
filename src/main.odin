@@ -142,6 +142,8 @@ main :: proc() {
     defer run.exec_context_destroy(&exec_ctx)
 
     res, run_err := run.exec(&exec_ctx, statements)
+    defer delete(res)
+
     switch x in run_err {
     case run.Runner_Error:
         fmt.printfln("Runner Error: {}", x)
@@ -153,6 +155,9 @@ main :: proc() {
         return
     }
 
-    println_statements(statements)
-    fmt.printfln("-> {}", res)
+    // println_statements(statements)
+    for x in res {
+        print_node(x.expr)
+        fmt.printfln(" = {}", x.value)
+    }
 }
