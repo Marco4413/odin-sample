@@ -163,6 +163,8 @@ lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
     case '(': tok.kind = .Open_Parenth;  return
     case ')': tok.kind = .Close_Parenth; return
     case ',': tok.kind = .Comma;         return
+    case '=': tok.kind = .Equal;         return
+    case ';': tok.kind = .Semi_Colon;    return
     case: lexer_prev_char(self)
     }
     tok.loc.span = 0
@@ -172,7 +174,13 @@ lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
     if err == nil do tok.kind = .Number
     else if _, is_lexer_error := err.(Lexer_Error); is_lexer_error {
         tok.ident, err = lexer_parse_ident(self)
-        if err == nil do tok.kind = .Ident
+        if err == nil {
+            switch tok.ident {
+            case "let": tok.kind = .Keyword_Let
+            case "fun": tok.kind = .Keyword_Fun
+            case: tok.kind = .Ident
+            }
+        }
     }
 
     if self.loc.line == tok.loc.line {

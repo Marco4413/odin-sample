@@ -51,26 +51,60 @@ print_node :: proc(node: ^parse.Node, current_precedence: uint = ~cast(uint)0) {
     }
 }
 
+print_statement :: proc(statement: parse.Statement) {
+    switch &x in statement {
+    case parse.Statement_Expr:
+        print_node(x.expr)
+    case parse.Statement_Let:
+        fmt.print("let ", x.var_name, " = ", sep = "")
+        print_node(x.expr)
+    case parse.Statement_Fun:
+        fmt.print("fun ", x.fun_name, "(", sep = "")
+
+        arg_names_iterator := parse.statement_fun_iterator_args(&x)
+        if first_arg_name, ok := parse.statement_fun_iterate_args(&arg_names_iterator); ok {
+            fmt.print(first_arg_name)
+            for arg_name in parse.statement_fun_iterate_args(&arg_names_iterator) {
+                fmt.print(", ", arg_name, sep = "")
+            }
+        }
+
+        fmt.print(") = ", sep = "")
+        print_node(x.expr)
+    }
+}
+
+print_statements :: proc(statements: parse.Statements) {
+    statements_iterator := parse.statements_iterator(statements)
+    if first_statement, ok := parse.statements_iterate(&statements_iterator); ok {
+        print_statement(first_statement^)
+        for statement in parse.statements_iterate(&statements_iterator) {
+            fmt.print("; ")
+            print_statement(statement^)
+        }
+    }
+}
+
 print_cursor :: proc(loc: lex.Loc, left_pad: uint = 0) {
     fmt.printf("%*.s", left_pad + cast(uint)(loc.char+1), "^", flush=false)
     for _ in 1..<loc.span do fmt.print("~", flush=false)
     fmt.println()
 }
 
-math_min :: proc(ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: run.Result, err: run.Error) {
+math_min :: proc(_: ^run.Fun, ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: run.Result, err: run.Error) {
     res = math.INF_F64
     for arg in run.fun_args_iterate(args) {
-        val := run.exec(ctx, arg) or_return
+        val := run.exec_expr(ctx, arg) or_return
         if val < res do res = val
     }
 
     return
 }
 
-math_max :: proc(ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: run.Result, err: run.Error) {
+math_max :: proc(_: ^run.Fun, ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: run.Result, err: run.Error) {
     res = math.NEG_INF_F64
     for arg in run.fun_args_iterate(args) {
-        val := run.exec(ctx, arg) or_return
+        val := run.exec_expr(ctx, arg) or_return
         if val > res do res = val
     }
 
@@ -105,7 +139,7 @@ main :: proc() {
     mem.dynamic_arena_init(&expr_allocator)
     defer mem.dynamic_arena_destroy(&expr_allocator)
 
-    expr_node, parse_err := parse.parser_parse(&parser, &expr_allocator)
+    statements, parse_err := parse.parser_parse(&parser, &expr_allocator)
     if parse_err != nil {
         tok, _ := parse.parser_current_token(&parser)
         fmt.printfln("Parse Error: {}", parse_err)
@@ -125,7 +159,7 @@ main :: proc() {
     run.exec_context_set_function(&exec_ctx, "min", math_min)
     run.exec_context_set_function(&exec_ctx, "max", math_max)
 
-    res, run_err := run.exec(&exec_ctx, expr_node)
+    res, run_err := run.exec(&exec_ctx, statements)
     switch x in run_err {
     case run.Runner_Error:
         fmt.printfln("Runner Error: {}", x)
@@ -138,6 +172,6 @@ main :: proc() {
         return
     }
 
-    print_node(expr_node)
-    fmt.printfln(" = {}", res)
+    print_statements(statements)
+    fmt.printfln("\n-> {}", res)
 }

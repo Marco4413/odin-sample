@@ -10,6 +10,7 @@ Runner_Error :: enum {
     Nil_Node,
     Undefined_Variable,
     Undefined_Function,
+    Arity_Mismatch,
 }
 
 Localized_Runner_Error :: struct {
@@ -23,7 +24,7 @@ Error  :: union {
     Localized_Runner_Error,
 }
 
-exec :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: Error) {
+exec_expr :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: Error) {
     if expr == nil {
         err = .Nil_Node
         return
@@ -42,11 +43,11 @@ exec :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: Error
         res = var
     case parser.Node_Binop:
         switch x.op {
-        case .Add: res = (exec(ctx, x.lhs) or_return) + (exec(ctx, x.rhs) or_return)
-        case .Sub: res = (exec(ctx, x.lhs) or_return) - (exec(ctx, x.rhs) or_return)
-        case .Mul: res = (exec(ctx, x.lhs) or_return) * (exec(ctx, x.rhs) or_return)
-        case .Div: res = (exec(ctx, x.lhs) or_return) / (exec(ctx, x.rhs) or_return)
-        case .Pow: res = math.pow((exec(ctx, x.lhs) or_return), (exec(ctx, x.rhs) or_return))
+        case .Add: res = (exec_expr(ctx, x.lhs) or_return) + (exec_expr(ctx, x.rhs) or_return)
+        case .Sub: res = (exec_expr(ctx, x.lhs) or_return) - (exec_expr(ctx, x.rhs) or_return)
+        case .Mul: res = (exec_expr(ctx, x.lhs) or_return) * (exec_expr(ctx, x.rhs) or_return)
+        case .Div: res = (exec_expr(ctx, x.lhs) or_return) / (exec_expr(ctx, x.rhs) or_return)
+        case .Pow: res = math.pow((exec_expr(ctx, x.lhs) or_return), (exec_expr(ctx, x.rhs) or_return))
         }
     case parser.Node_Fun_Call:
         fun, found := ctx.functions[x.func_name]
@@ -56,15 +57,55 @@ exec :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: Error
         }
 
         args_iterator := parser.node_fun_call_iterator_args(&x)
-        res = fun(ctx, &args_iterator) or_return
+        res = fun->call(ctx, &args_iterator) or_return
     }
 
     return
 }
 
-exec_contextless :: proc(expr: ^parser.Node) -> (res: Result, err: Error) {
+@private user_defined_fun_call :: proc(self: ^Fun, ctx: ^Exec_Context, args: ^Fun_Args_Iterator) -> (res: Result, err: Error) {
+    statement_fun := cast(^parser.Statement_Fun)self.data
+    args_name     := parser.statement_fun_iterator_args(statement_fun)
+    child_ctx     := exec_context_clone(ctx)
+    defer exec_context_destroy(&child_ctx)
+
+    for {
+        next_arg_name, next_arg_name_ok := parser.statement_fun_iterate_args(&args_name)
+        next_arg,      next_arg_ok      := fun_args_iterate(args)
+        if next_arg_name_ok != next_arg_ok {
+            err = .Arity_Mismatch
+            return
+        }
+
+        if !next_arg_ok do break
+        assert(len(next_arg_name) > 0)
+        exec_context_set_variable(&child_ctx, next_arg_name, (exec_expr(ctx, next_arg) or_return))
+    }
+
+    res, err = exec_expr(&child_ctx, statement_fun.expr)
+    return
+}
+
+exec :: proc(ctx: ^Exec_Context, statements: parser.Statements) -> (res: Result, err: Error) {
+    statements_iterator := parser.statements_iterator(statements)
+    for statement in parser.statements_iterate(&statements_iterator) {
+        switch &x in statement {
+        case parser.Statement_Expr:
+            res = exec_expr(ctx, x.expr) or_return
+        case parser.Statement_Let:
+            exec_context_set_variable(ctx, x.var_name, (exec_expr(ctx, x.expr) or_return))
+        case parser.Statement_Fun:
+            exec_context_set_function(ctx, x.fun_name, user_defined_fun_call, &x)
+        case: unreachable()
+        }
+    }
+
+    return
+}
+
+exec_contextless :: proc(statements: parser.Statements) -> (res: Result, err: Error) {
     ctx: Exec_Context
     exec_context_init(&ctx)
     defer exec_context_destroy(&ctx)
-    return exec(&ctx, expr)
+    return exec(&ctx, statements)
 }

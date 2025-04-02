@@ -10,8 +10,10 @@ Token_Kind :: enum {
     None,
     Add, Sub, Mul, Div, Pow,
     Open_Parenth, Close_Parenth,
-    Comma,
-    Ident, Number
+    Comma, Equal, Semi_Colon,
+    Ident, Number,
+    Keyword_Let,
+    Keyword_Fun,
 }
 
 Token :: struct {

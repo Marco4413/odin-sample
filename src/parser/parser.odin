@@ -143,13 +143,110 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
     return
 }
 
-parser_parse :: proc(self: ^Parser, expr_allocator: ^mem.Dynamic_Arena) -> (node: ^Node, err: Error) {
-    context.allocator = mem.dynamic_arena_allocator(expr_allocator)
-    node        = parser_parse_expr(self, 0) or_return
-    _, tok_err := parser_current_token(self)
-    if tok_err == nil {
-        // tok_err MUST be at least .EOF on successful parsing
-        err = .Unexpected_Token
+@private parser_parse_stmt :: proc(self: ^Parser) -> (statement: Statement, err: Error) {
+    statement_keyword := parser_current_token(self) or_return
+    statement = Statement_Expr{ expr = nil }
+
+    #partial switch statement_keyword.kind {
+    case .Keyword_Let: statement = Statement_Let{ }
+    case .Keyword_Fun: statement = Statement_Fun{ }
     }
+
+    switch &x in statement {
+    case Statement_Expr:
+        x.expr = parser_parse_expr(self, 0) or_return
+    case Statement_Let:
+        parser_consume_token(self)
+        ident_name := parser_current_token(self) or_return
+        if ident_name.kind != .Ident {
+            err = .Unexpected_Token
+            return
+        }
+
+        parser_consume_token(self)
+        x.var_name = strings.clone(ident_name.ident)
+        equal := parser_current_token(self) or_return
+
+        if equal.kind != .Equal {
+            err = .Unexpected_Token
+            return
+        }
+
+        parser_consume_token(self)
+        x.expr = parser_parse_expr(self, 0) or_return
+    case Statement_Fun:
+        parser_consume_token(self)
+        ident_name := parser_current_token(self) or_return
+        if ident_name.kind != .Ident {
+            err = .Unexpected_Token
+            return
+        }
+
+        parser_consume_token(self)
+        x.fun_name = strings.clone(ident_name.ident)
+
+        open_parenth := parser_current_token(self) or_return
+        if open_parenth.kind != .Open_Parenth {
+            err = .Unexpected_Token
+            return
+        }
+
+        parser_consume_token(self)
+        close_parenth_or_comma := parser_current_token(self) or_return
+
+        for {
+            if close_parenth_or_comma.kind == .Close_Parenth do break
+
+            arg_ident := parser_current_token(self) or_return
+            if arg_ident.kind != .Ident {
+                err = .Unexpected_Token
+                return
+            }
+
+            statement_fun_push_arg(&x, strings.clone(arg_ident.ident))
+            parser_consume_token(self)
+
+            close_parenth_or_comma = parser_current_token(self) or_return
+            if close_parenth_or_comma.kind != .Comma do break
+            parser_consume_token(self) // Consume comma
+        }
+
+        if close_parenth_or_comma.kind != .Close_Parenth {
+            err = .Unexpected_Token
+            return
+        }
+
+        parser_consume_token(self)
+        equal := parser_current_token(self) or_return
+        if equal.kind != .Equal {
+            err = .Unexpected_Token
+            return
+        }
+
+        parser_consume_token(self)
+        x.expr = parser_parse_expr(self, 0) or_return
+    }
+
     return
+}
+
+parser_parse :: proc(self: ^Parser, expr_allocator: ^mem.Dynamic_Arena) -> (statements: Statements, err: Error) {
+    context.allocator = mem.dynamic_arena_allocator(expr_allocator)
+    for {
+        statement := parser_parse_stmt(self) or_return
+        statements_push(&statements, statement)
+
+        semi_colon, tok_err := parser_current_token(self)
+        if tok_err != nil {
+            assert(tok_err == .EOF)
+            return
+        }
+
+        if semi_colon.kind != .Semi_Colon {
+            err = .Unexpected_Token
+            return
+        }
+
+        parser_consume_token(self)
+    }
 }

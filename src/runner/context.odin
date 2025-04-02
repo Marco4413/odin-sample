@@ -5,7 +5,12 @@ import "../parser"
 Fun_Args_Iterator :: parser.Fun_Args_Iterator
 fun_args_iterate  :: parser.node_fun_call_iterate_args
 
-Fun     :: #type proc(ctx: ^Exec_Context, args: ^Fun_Args_Iterator) -> (res: Result, err: Error)
+Fun_Call :: #type proc(self: ^Fun, ctx: ^Exec_Context, args: ^Fun_Args_Iterator) -> (res: Result, err: Error)
+Fun      :: struct {
+    call: Fun_Call,
+    data: rawptr,
+}
+
 Fun_Map :: map[string]Fun
 Var_Map :: map[string]Result
 
@@ -30,6 +35,21 @@ exec_context_set_variable :: proc(self: ^Exec_Context, var_name: string, val: Re
 }
 
 // The given fun_name must outlive the context
-exec_context_set_function :: proc(self: ^Exec_Context, fun_name: string, fun: Fun) {
-    self.functions[fun_name] = fun
+exec_context_set_function :: proc(self: ^Exec_Context, fun_name: string, fun_call: Fun_Call, fun_data: rawptr = nil) {
+    self.functions[fun_name] = {
+        call = fun_call,
+        data = fun_data,
+    }
+}
+
+@private clone_map :: proc(self: ^map[$K]$V) -> (clone: map[K]V) {
+    clone = make(map[K]V)
+    for k, v in self do clone[k] = v
+    return
+}
+
+exec_context_clone :: proc(self: ^Exec_Context) -> (res: Exec_Context) {
+    res.functions = clone_map(&self.functions)
+    res.variables = clone_map(&self.variables)
+    return
 }
