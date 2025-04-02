@@ -3,7 +3,6 @@ package main
 import "base:runtime" // args__
 
 import "core:fmt"
-import "core:math"
 import "core:mem"
 import "core:strings"
 
@@ -100,26 +99,6 @@ print_cursor :: proc(loc: lex.Loc, left_pad: uint = 0) {
     fmt.println()
 }
 
-math_min :: proc(_: ^run.Fun, ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: run.Result, err: run.Error) {
-    res = math.INF_F64
-    for arg in run.fun_args_iterate(args) {
-        val := run.exec_expr(ctx, arg) or_return
-        if val < res do res = val
-    }
-
-    return
-}
-
-math_max :: proc(_: ^run.Fun, ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: run.Result, err: run.Error) {
-    res = math.NEG_INF_F64
-    for arg in run.fun_args_iterate(args) {
-        val := run.exec_expr(ctx, arg) or_return
-        if val > res do res = val
-    }
-
-    return
-}
-
 make_os_args :: proc() -> (argv: []string) {
     // See https://github.com/odin-lang/Odin/pull/4680
     // And https://github.com/odin-lang/Odin/pull/4680#issuecomment-2585475395
@@ -158,14 +137,9 @@ main :: proc() {
     }
 
     exec_ctx: run.Exec_Context
-    run.exec_context_init(&exec_ctx)
+    // See 'runner/default_context.odin'
+    run.exec_context_init_default(&exec_ctx)
     defer run.exec_context_destroy(&exec_ctx)
-
-    run.exec_context_set_variable(&exec_ctx, "pi", math.π)
-    run.exec_context_set_variable(&exec_ctx, "e",  math.e)
-
-    run.exec_context_set_function(&exec_ctx, "min", math_min)
-    run.exec_context_set_function(&exec_ctx, "max", math_max)
 
     res, run_err := run.exec(&exec_ctx, statements)
     switch x in run_err {
