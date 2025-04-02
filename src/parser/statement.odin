@@ -2,11 +2,14 @@ package parser
 
 import "core:container/intrusive/list"
 
+import lex "../lexer"
+
 Statement_Expr :: struct {
     expr: ^Node
 }
 
 Statement_Var :: struct {
+    loc: lex.Loc,
     var_name: string,
     expr: ^Node
 }
@@ -19,6 +22,7 @@ Statement_Fun_Args_Item     :: struct {
 }
 
 Statement_Fun :: struct {
+    loc: lex.Loc,
     fun_name: string,
     args: Statement_Fun_Args,
     expr: ^Node

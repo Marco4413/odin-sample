@@ -11,6 +11,8 @@ Runner_Error :: enum {
     Undefined_Variable,
     Undefined_Function,
     Arity_Mismatch,
+    Variable_Redefinition,
+    Function_Redefinition,
 }
 
 Localized_Runner_Error :: struct {
@@ -115,8 +117,18 @@ exec :: proc(ctx: ^Exec_Context, statements: parser.Statements) -> (res: [dynami
                 value = value,
             })
         case parser.Statement_Var:
+            if x.var_name in ctx.variables {
+                err = Localized_Runner_Error{ .Variable_Redefinition, x.loc }
+                return
+            }
+
             exec_context_set_variable(ctx, x.var_name, (exec_expr(ctx, x.expr) or_return))
         case parser.Statement_Fun:
+            if x.fun_name in ctx.functions {
+                err = Localized_Runner_Error{ .Function_Redefinition, x.loc }
+                return
+            }
+
             exec_context_set_function(ctx, x.fun_name, user_defined_fun_call, &x)
         case: unreachable()
         }

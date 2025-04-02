@@ -164,9 +164,10 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
         }
 
         parser_consume_token(self)
+        x.loc      = ident_name.loc
         x.var_name = strings.clone(ident_name.ident)
-        equal := parser_current_token(self) or_return
 
+        equal := parser_current_token(self) or_return
         if equal.kind != .Equal {
             err = .Unexpected_Token
             return
@@ -183,6 +184,7 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
         }
 
         parser_consume_token(self)
+        x.loc      = ident_name.loc
         x.fun_name = strings.clone(ident_name.ident)
 
         open_parenth := parser_current_token(self) or_return
