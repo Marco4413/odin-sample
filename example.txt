@@ -1,0 +1,14 @@
+// I recommend using Kotlin's syntax highlighting
+
+// fun if(truth, on_true, on_false) = <native>
+// Evaluates on_true if truth > 0, on_false otherwise
+
+// As of now, defining multiple functions/variables with
+//  the same name is undefined behaviour.
+
+fun clamp(x, minx, maxx) = max(min(x, maxx), minx);
+fun is_equal(x, y)       = if(x - y, 0, if(y - x, 0, 1));
+
+var two_pi = 2 * pi;
+
+floor(pi) + clamp(two_pi, 3, 6) * is_equal(pi, pi);
