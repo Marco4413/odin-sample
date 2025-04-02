@@ -233,20 +233,15 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
 parser_parse :: proc(self: ^Parser, expr_allocator: ^mem.Dynamic_Arena) -> (statements: Statements, err: Error) {
     context.allocator = mem.dynamic_arena_allocator(expr_allocator)
     for {
+        semi_colon, tok_err := parser_current_token(self)
+        if tok_err == .EOF do return
+        if semi_colon.kind == .Semi_Colon {
+            // Skip empty statement
+            parser_consume_token(self)
+            continue
+        }
+
         statement := parser_parse_stmt(self) or_return
         statements_push(&statements, statement)
-
-        semi_colon, tok_err := parser_current_token(self)
-        if tok_err != nil {
-            assert(tok_err == .EOF)
-            return
-        }
-
-        if semi_colon.kind != .Semi_Colon {
-            err = .Unexpected_Token
-            return
-        }
-
-        parser_consume_token(self)
     }
 }
