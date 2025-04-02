@@ -243,5 +243,17 @@ parser_parse :: proc(self: ^Parser, expr_allocator: ^mem.Dynamic_Arena) -> (stat
 
         statement := parser_parse_stmt(self) or_return
         statements_push(&statements, statement)
+
+        semi_colon, tok_err = parser_current_token(self)
+        if tok_err != nil {
+            assert(tok_err == .EOF)
+            return
+        }
+
+        // Require ; after a statement
+        if semi_colon.kind != .Semi_Colon {
+            err = .Unexpected_Token
+            return
+        }
     }
 }
