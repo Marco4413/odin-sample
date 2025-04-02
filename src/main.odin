@@ -1,9 +1,10 @@
 package main
 
+import "base:runtime" // args__
+
 import "core:fmt"
 import "core:math"
 import "core:mem"
-import "core:os"
 import "core:strings"
 
 import lex   "lexer"
@@ -76,13 +77,24 @@ math_max :: proc(ctx: ^run.Exec_Context, args: ^run.Fun_Args_Iterator) -> (res: 
     return
 }
 
+make_os_args :: proc() -> (argv: []string) {
+    // See https://github.com/odin-lang/Odin/pull/4680
+    // And https://github.com/odin-lang/Odin/pull/4680#issuecomment-2585475395
+    argv = make([]string, len(runtime.args__))
+    for _, i in argv do argv[i] = string(runtime.args__[i])
+    return
+}
+
 main :: proc() {
-    if len(os.args) <= 1 {
+    os_args := make_os_args()
+    defer delete(os_args)
+
+    if len(os_args) <= 1 {
         fmt.println("ERROR: No expression provided.")
         return
     }
 
-    expr_source := strings.join(os.args[1:], " ")
+    expr_source := strings.join(os_args[1:], " ")
     defer delete(expr_source)
 
     parser: parse.Parser
