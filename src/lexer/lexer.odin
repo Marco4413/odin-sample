@@ -76,7 +76,7 @@ lexer_destroy :: proc(self: ^Lexer) {
 }
 
 @private is_identifier_start :: proc(r: rune) -> bool {
-    return unicode.is_letter(r)
+    return r == '_' || unicode.is_letter(r)
 }
 
 @private is_identifier_continuation :: proc(r: rune) -> bool {
