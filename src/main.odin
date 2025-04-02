@@ -74,15 +74,26 @@ print_statement :: proc(statement: parse.Statement) {
     }
 }
 
-print_statements :: proc(statements: parse.Statements) {
+println_statements :: proc(statements: parse.Statements) {
     statements_iterator := parse.statements_iterator(statements)
-    if first_statement, ok := parse.statements_iterate(&statements_iterator); ok {
-        print_statement(first_statement^)
-        for statement in parse.statements_iterate(&statements_iterator) {
-            fmt.print("; ")
-            print_statement(statement^)
-        }
+    for statement in parse.statements_iterate(&statements_iterator) {
+        print_statement(statement^)
+        fmt.println(";")
     }
+}
+
+get_line :: proc(text: string, line: u32) -> string {
+    cur_idx         := 0
+    new_line_offset := 0
+
+    for _ in 0..=line {
+        width: int
+        new_line_offset, width = strings.index_multi(text[cur_idx:], []string{ "\r\n", "\n" })
+        if new_line_offset < 0 do return text[cur_idx:]
+        cur_idx += new_line_offset + width
+    }
+
+    return text[cur_idx:cur_idx+new_line_offset]
 }
 
 print_cursor :: proc(loc: lex.Loc, left_pad: uint = 0) {
@@ -142,9 +153,8 @@ main :: proc() {
     statements, parse_err := parse.parser_parse(&parser, &expr_allocator)
     if parse_err != nil {
         tok, _ := parse.parser_current_token(&parser)
-        fmt.printfln("Parse Error: {}", parse_err)
-        // FIXME: Not handling multiple lines, though it's not necessary
-        fmt.printfln("'{}'", expr_source)
+        fmt.printfln("Parse Error: {}({}:{})", parse_err, tok.loc.line+1, tok.loc.char+1)
+        fmt.printfln("'{}'", get_line(expr_source, tok.loc.line))
         print_cursor(tok.loc, 1)
         return
     }
@@ -165,13 +175,12 @@ main :: proc() {
         fmt.printfln("Runner Error: {}", x)
         return
     case run.Localized_Runner_Error:
-        fmt.printfln("Runner Error: {}", x.err)
-        // FIXME: Not handling multiple lines, though it's not necessary
-        fmt.printfln("'{}'", expr_source)
+        fmt.printfln("Runner Error: {}({}:{})", x.err, x.loc.line+1, x.loc.char+1)
+        fmt.printfln("'{}'", get_line(expr_source, x.loc.line))
         print_cursor(x.loc, 1)
         return
     }
 
-    print_statements(statements)
-    fmt.printfln("\n-> {}", res)
+    println_statements(statements)
+    fmt.printfln("-> {}", res)
 }
