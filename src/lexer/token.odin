@@ -12,7 +12,7 @@ Token_Kind :: enum {
     Open_Parenth, Close_Parenth,
     Comma, Equal, Semi_Colon,
     Ident, Number,
-    Keyword_Let,
+    Keyword_Var,
     Keyword_Fun,
 }
 

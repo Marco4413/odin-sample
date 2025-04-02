@@ -148,14 +148,14 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
     statement = Statement_Expr{ expr = nil }
 
     #partial switch statement_keyword.kind {
-    case .Keyword_Let: statement = Statement_Let{ }
+    case .Keyword_Var: statement = Statement_Var{ }
     case .Keyword_Fun: statement = Statement_Fun{ }
     }
 
     switch &x in statement {
     case Statement_Expr:
         x.expr = parser_parse_expr(self, 0) or_return
-    case Statement_Let:
+    case Statement_Var:
         parser_consume_token(self)
         ident_name := parser_current_token(self) or_return
         if ident_name.kind != .Ident {

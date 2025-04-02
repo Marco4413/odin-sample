@@ -199,7 +199,7 @@ lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
             tok.ident, err = lexer_parse_ident(self)
             if err == nil {
                 switch tok.ident {
-                case "let": tok.kind = .Keyword_Let
+                case "var": tok.kind = .Keyword_Var
                 case "fun": tok.kind = .Keyword_Fun
                 case: tok.kind = .Ident
                 }

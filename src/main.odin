@@ -54,8 +54,8 @@ print_statement :: proc(statement: parse.Statement) {
     switch &x in statement {
     case parse.Statement_Expr:
         print_node(x.expr)
-    case parse.Statement_Let:
-        fmt.print("let ", x.var_name, " = ", sep = "")
+    case parse.Statement_Var:
+        fmt.print("var ", x.var_name, " = ", sep = "")
         print_node(x.expr)
     case parse.Statement_Fun:
         fmt.print("fun ", x.fun_name, "(", sep = "")

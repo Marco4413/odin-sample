@@ -6,7 +6,7 @@ Statement_Expr :: struct {
     expr: ^Node
 }
 
-Statement_Let :: struct {
+Statement_Var :: struct {
     var_name: string,
     expr: ^Node
 }
@@ -26,7 +26,7 @@ Statement_Fun :: struct {
 
 Statement :: union {
     Statement_Expr,
-    Statement_Let,
+    Statement_Var,
     Statement_Fun,
 }
 

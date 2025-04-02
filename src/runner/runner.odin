@@ -102,7 +102,7 @@ exec :: proc(ctx: ^Exec_Context, statements: parser.Statements) -> (res: Result,
         switch &x in statement {
         case parser.Statement_Expr:
             res = exec_expr(ctx, x.expr) or_return
-        case parser.Statement_Let:
+        case parser.Statement_Var:
             exec_context_set_variable(ctx, x.var_name, (exec_expr(ctx, x.expr) or_return))
         case parser.Statement_Fun:
             exec_context_set_function(ctx, x.fun_name, user_defined_fun_call, &x)
