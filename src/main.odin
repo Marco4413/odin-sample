@@ -83,14 +83,12 @@ println_statements :: proc(statements: parse.Statements) {
 }
 
 get_line :: proc(text: string, line: u32) -> string {
-    cur_idx         := 0
-    new_line_offset := 0
+    cur_idx, new_line_offset, new_line_width: int
 
     for _ in 0..=line {
-        width: int
-        new_line_offset, width = strings.index_multi(text[cur_idx:], []string{ "\r\n", "\n" })
+        cur_idx += new_line_offset + new_line_width
+        new_line_offset, new_line_width = strings.index_multi(text[cur_idx:], []string{ "\r\n", "\n" })
         if new_line_offset < 0 do return text[cur_idx:]
-        cur_idx += new_line_offset + width
     }
 
     return text[cur_idx:cur_idx+new_line_offset]
