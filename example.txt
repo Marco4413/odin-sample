@@ -5,7 +5,9 @@
 
 fun clamp(x, minx, maxx) = max(min(x, maxx), minx);
 fun is_equal(x, y)       = if(x - y, 0, if(y - x, 0, 1));
+fun fibonacci(n)         = if(n, if(n - 2, fibonacci(n - 2) + fibonacci(n - 1), 1), 0);
 
 var two_pi = 2 * pi;
 
 floor(pi) + clamp(two_pi, 3, 6) * is_equal(pi, pi);
+fibonacci(11);
