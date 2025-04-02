@@ -57,7 +57,17 @@ exec_expr :: proc(ctx: ^Exec_Context, expr: ^parser.Node) -> (res: Result, err: 
         }
 
         args_iterator := parser.node_fun_call_iterator_args(&x)
-        res = fun->call(ctx, &args_iterator) or_return
+        res, err = fun->call(ctx, &args_iterator)
+        if err != nil {
+            if unloc_err, is_unlocalized_err := err.(Runner_Error); is_unlocalized_err {
+                err = Localized_Runner_Error{
+                    err = unloc_err,
+                    loc = x.loc,
+                }
+            }
+
+            return
+        }
     }
 
     return
