@@ -50,12 +50,20 @@ lexer_destroy :: proc(self: ^Lexer) {
     return
 }
 
-@private lexer_get_current_byte :: proc(self: ^Lexer) -> (cur: i64, err: Error) {
-    return strings.reader_seek(&self.source_reader, 0, .Current)
+@private Lexer_Cursor_State :: struct {
+    loc: Loc,
+    reader_cur: i64,
 }
 
-@private lexer_go_back_to_byte :: proc(self: ^Lexer, cur: i64) -> (err: Error) {
-    _, err = strings.reader_seek(&self.source_reader, cur, .Start)
+@private lexer_save_state :: proc(self: ^Lexer) -> (state: Lexer_Cursor_State, err: Error) {
+    state.loc        = self.loc
+    state.reader_cur = strings.reader_seek(&self.source_reader, 0, .Current) or_return
+    return
+}
+
+@private lexer_restore_state :: proc(self: ^Lexer, state: Lexer_Cursor_State) -> (err: Error) {
+    self.loc = state.loc
+    strings.reader_seek(&self.source_reader, state.reader_cur, .Start) or_return
     return
 }
 
@@ -75,6 +83,19 @@ lexer_destroy :: proc(self: ^Lexer) {
     return
 }
 
+@private lexer_trim_comments :: proc(self: ^Lexer) -> (trimmed: bool, err: Error) {
+    comment_start := lexer_save_state(self) or_return
+
+    if (lexer_next_char(self) or_return) == '/' && (lexer_next_char(self) or_return) == '/' {
+        trimmed = true
+        for (lexer_next_char(self) or_return) != '\n' {}
+    } else {
+        lexer_restore_state(self, comment_start) or_return
+    }
+
+    return
+}
+
 @private is_identifier_start :: proc(r: rune) -> bool {
     return r == '_' || unicode.is_letter(r)
 }
@@ -84,7 +105,7 @@ lexer_destroy :: proc(self: ^Lexer) {
 }
 
 @private lexer_parse_number :: proc(self: ^Lexer) -> (num: f64, err: Error) {
-    num_start := lexer_get_current_byte(self) or_return
+    num_start := lexer_save_state(self) or_return
     rr        := lexer_next_char(self) or_return
     if !unicode.is_digit(rr) {
         lexer_prev_char(self) or_return
@@ -115,7 +136,7 @@ lexer_destroy :: proc(self: ^Lexer) {
     }
 
     if cur_err == nil && is_identifier_continuation(rr) {
-        lexer_go_back_to_byte(self, num_start) or_return
+        lexer_restore_state(self, num_start) or_return
         err = .Unknown_Token
         return
     }
@@ -127,7 +148,7 @@ lexer_destroy :: proc(self: ^Lexer) {
 @private lexer_parse_ident :: proc(self: ^Lexer) -> (ident: string, err: Error) {
     context.allocator = mem.dynamic_arena_allocator(&self.ident_allocator)
 
-    ident_start := lexer_get_current_byte(self) or_return
+    ident_start := lexer_save_state(self) or_return
 
     rr := lexer_next_char(self) or_return
     if !is_identifier_start(rr) {
@@ -142,51 +163,54 @@ lexer_destroy :: proc(self: ^Lexer) {
     }
     lexer_prev_char(self)
 
-    ident_end := lexer_get_current_byte(self) or_return
-    ident = strings.clone(self.source[ident_start:ident_end])
+    ident_end := lexer_save_state(self) or_return
+    ident = strings.clone(self.source[ident_start.reader_cur:ident_end.reader_cur])
 
     return
 }
 
 lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
-    lexer_trim_left(self) or_return
-    tok.loc = self.loc
-
-    rr := lexer_next_char(self) or_return
-    tok.loc.span = 1
-    switch rr {
-    case '+': tok.kind = .Add; return
-    case '-': tok.kind = .Sub; return
-    case '*': tok.kind = .Mul; return
-    case '/': tok.kind = .Div; return
-    case '^': tok.kind = .Pow; return
-    case '(': tok.kind = .Open_Parenth;  return
-    case ')': tok.kind = .Close_Parenth; return
-    case ',': tok.kind = .Comma;         return
-    case '=': tok.kind = .Equal;         return
-    case ';': tok.kind = .Semi_Colon;    return
-    case: lexer_prev_char(self)
-    }
-    tok.loc.span = 0
-
-    // Reader errors should propagate
-    tok.value, err = lexer_parse_number(self)
-    if err == nil do tok.kind = .Number
-    else if _, is_lexer_error := err.(Lexer_Error); is_lexer_error {
-        tok.ident, err = lexer_parse_ident(self)
-        if err == nil {
-            switch tok.ident {
-            case "let": tok.kind = .Keyword_Let
-            case "fun": tok.kind = .Keyword_Fun
-            case: tok.kind = .Ident
+    for {
+        lexer_trim_left(self) or_return
+        if has_trimmed_comment := lexer_trim_comments(self) or_return; has_trimmed_comment do continue
+        tok.loc = self.loc
+    
+        rr := lexer_next_char(self) or_return
+        tok.loc.span = 1
+        switch rr {
+        case '+': tok.kind = .Add; return
+        case '-': tok.kind = .Sub; return
+        case '*': tok.kind = .Mul; return
+        case '/': tok.kind = .Div; return
+        case '^': tok.kind = .Pow; return
+        case '(': tok.kind = .Open_Parenth;  return
+        case ')': tok.kind = .Close_Parenth; return
+        case ',': tok.kind = .Comma;         return
+        case '=': tok.kind = .Equal;         return
+        case ';': tok.kind = .Semi_Colon;    return
+        case: lexer_prev_char(self)
+        }
+        tok.loc.span = 0
+    
+        // Reader errors should propagate
+        tok.value, err = lexer_parse_number(self)
+        if err == nil do tok.kind = .Number
+        else if _, is_lexer_error := err.(Lexer_Error); is_lexer_error {
+            tok.ident, err = lexer_parse_ident(self)
+            if err == nil {
+                switch tok.ident {
+                case "let": tok.kind = .Keyword_Let
+                case "fun": tok.kind = .Keyword_Fun
+                case: tok.kind = .Ident
+                }
             }
         }
+    
+        if self.loc.line == tok.loc.line {
+            assert(self.loc.char >= tok.loc.char)
+            tok.loc.span = self.loc.char - tok.loc.char
+        }
+    
+        return
     }
-
-    if self.loc.line == tok.loc.line {
-        assert(self.loc.char >= tok.loc.char)
-        tok.loc.span = self.loc.char - tok.loc.char
-    }
-
-    return
 }
