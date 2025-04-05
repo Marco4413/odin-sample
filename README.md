@@ -5,12 +5,13 @@ This project is just me trying out [Odin](https://odin-lang.org).
 ## Compile & Run
 
 ```sh
-$ odin run src -vet -- <EXPRESSION>
+$ odin build src -vet
+$ ./src.bin -- <EXPRESSION>
 ```
 
 On Linux you can provide a file as input:
 ```sh
-$ odin run src -vet -- "$(cat example.txt)"
+$ ./src.bin -- "$(cat example.txt)"
 ```
 
 To output numbers only, `sed` can be used as follows:
