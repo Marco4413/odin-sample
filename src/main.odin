@@ -20,6 +20,11 @@ print_node :: proc(node: ^parse.Node, current_precedence: uint = ~cast(uint)0) {
         fmt.print(x)
     case parse.Node_Var:
         fmt.print(x.var_name)
+    case parse.Node_Unop:
+        switch x.op {
+        case .Negate: fmt.print("-")
+        }
+        print_node(x.expr)
     case parse.Node_Binop:
         new_precedence := parse.get_operator_precedence(x.op)
         is_ambiguous   := new_precedence > current_precedence || is_ambiguous_operator(x.op)

@@ -11,6 +11,15 @@ Node_Var :: struct {
     var_name: string,
 }
 
+Unop_Kind :: enum {
+    Negate
+}
+
+Node_Unop :: struct {
+    op: Unop_Kind,
+    expr: ^Node,
+}
+
 Binop_Kind :: enum {
     Add, Sub, Mul, Div, Pow
 }
@@ -36,6 +45,7 @@ Node_Fun_Call :: struct {
 
 Node :: union {
     Node_Number,
+    Node_Unop,
     Node_Binop,
     Node_Var,
     Node_Fun_Call,

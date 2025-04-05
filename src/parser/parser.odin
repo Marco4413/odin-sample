@@ -51,6 +51,15 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
         } else {
             err = .Unexpected_Token
         }
+    } else if open_parenth.kind == .Sub {
+        // Unary minus
+        parser_consume_token(self)
+        unop_node: Node_Unop
+        unop_node.op   = .Negate
+        unop_node.expr = parser_parse_atom(self) or_return
+
+        node  = new(Node) or_return
+        node^ = unop_node
     } else if open_parenth.kind == .Ident {
         func_node: Node_Fun_Call
         func_node.loc       = open_parenth.loc

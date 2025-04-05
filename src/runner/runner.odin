@@ -49,6 +49,10 @@ exec_expr :: proc(scope: ^Fun_Scope, expr: ^parser.Node) -> (res: Result, err: E
         }
 
         res = var
+    case parser.Node_Unop:
+        switch x.op {
+        case .Negate: res = -(exec_expr(scope, x.expr) or_return)
+        }
     case parser.Node_Binop:
         switch x.op {
         case .Add: res = (exec_expr(scope, x.lhs) or_return) + (exec_expr(scope, x.rhs) or_return)
