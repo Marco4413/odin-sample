@@ -2,8 +2,11 @@ package main
 
 import "base:runtime" // args__
 
+import "core:flags"
 import "core:fmt"
 import "core:mem"
+import "core:os"
+import "core:path/filepath"
 import "core:strings"
 
 import lex   "lexer"
@@ -113,20 +116,67 @@ make_os_args :: proc() -> (argv: []string) {
 }
 
 main :: proc() {
+    os.exit(cli_main())
+}
+
+// I don't know how to feel about this:
+// https://odin-lang.org/docs/overview/#struct-field-tags
+CLI_Options :: struct {
+    expr: [dynamic]string `args:"name=varg,required,variadic" usage:"The expression to be ran."`,
+    optimize_unary: bool `args:"name=opt-unary" usage:"Optimizes unary expressions like '--foo' to 'foo'."`,
+}
+
+cli_main :: proc() -> int {
+    stderr := os.stream_from_handle(os.stderr)
+    stdout := os.stream_from_handle(os.stdout)
+
     os_args := make_os_args()
     defer delete(os_args)
 
-    if len(os_args) <= 1 {
-        fmt.println("ERROR: No expression provided.")
-        return
+    cli_options: CLI_Options
+    defer delete(cli_options.expr)
+
+    assert(len(os_args) > 0, "Missing program path.")
+    program := filepath.base(os_args[0])
+    flags_style := flags.Parsing_Style.Unix
+
+    // Some code taken from flags.print_errors()
+    switch error in flags.parse(&cli_options, os_args[1:], flags_style, true, true) {
+    case flags.Parse_Error:
+        // I hate this flags parser
+        // I hate this flags parser
+        // I hate this flags parser
+        // I hate this flags parser
+        // I hate this flags parser
+        // I hate this flags parser
+        correct_message, was_allocated := strings.replace(error.message, "`varg`", "`expr`", -1)
+        fmt.wprintfln(stderr, "%s", correct_message)
+        if was_allocated do delete(correct_message)
+        return 1
+    case flags.Open_File_Error:
+        fmt.wprintfln(stderr, "[%i] Unable to open file with perms 0o%o in mode 0x%x: %s",
+            error.errno, error.perms, error.mode, error.filename)
+        return 1
+    case flags.Validation_Error:
+        fmt.wprintfln(stderr, "%s", error.message)
+        return 1
+    case flags.Help_Request:
+        fmt.wprintln(stdout, "A math expression parser and interpreter.")
+        flags.write_usage(stdout, CLI_Options, program, flags_style)
+        return 0
     }
 
-    expr_source := strings.join(os_args[1:], " ")
+    return app_main(cli_options)
+}
+
+app_main :: proc(cli_options: CLI_Options) -> int {
+    expr_source := strings.join(cli_options.expr[:], " ")
     defer delete(expr_source)
 
     parser: parse.Parser
     parse.parser_init(&parser, expr_source)
     defer parse.parser_destroy(&parser)
+    parser.optimize_unary_operators = cli_options.optimize_unary
 
     expr_allocator: mem.Dynamic_Arena
     mem.dynamic_arena_init(&expr_allocator)
@@ -138,7 +188,7 @@ main :: proc() {
         fmt.printfln("Parse Error: {}({}:{})", parse_err, tok.loc.line+1, tok.loc.char+1)
         fmt.printfln("'{}'", get_line(expr_source, tok.loc.line))
         print_cursor(tok.loc, 1)
-        return
+        return 1
     }
 
     global_scope: run.Global_Scope
@@ -152,12 +202,12 @@ main :: proc() {
     switch x in run_err {
     case run.Runner_Error:
         fmt.printfln("Runner Error: {}", x)
-        return
+        return 1
     case run.Localized_Runner_Error:
         fmt.printfln("Runner Error: {}({}:{})", x.err, x.loc.line+1, x.loc.char+1)
         fmt.printfln("'{}'", get_line(expr_source, x.loc.line))
         print_cursor(x.loc, 1)
-        return
+        return 1
     }
 
     Result_Info :: struct {
@@ -218,4 +268,6 @@ main :: proc() {
         print_node(x.expr)
         fmt.println()
     }
+
+    return 0
 }
