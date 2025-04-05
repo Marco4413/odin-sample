@@ -136,12 +136,12 @@ main :: proc() {
         return
     }
 
-    exec_ctx: run.Exec_Context
+    global_scope: run.Global_Scope
     // See 'runner/default_context.odin'
-    run.exec_context_init_default(&exec_ctx)
-    defer run.exec_context_destroy(&exec_ctx)
+    run.global_scope_init_default(&global_scope)
+    defer run.global_scope_destroy(&global_scope)
 
-    res, run_err := run.exec(&exec_ctx, statements)
+    res, run_err := run.exec(&global_scope, statements)
     defer delete(res)
 
     switch x in run_err {
