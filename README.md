@@ -12,3 +12,8 @@ On Linux you can provide a file as input:
 ```sh
 $ odin run src -vet -- "$(cat example.txt)"
 ```
+
+To output numbers only, `sed` can be used as follows:
+```sh
+| sed -E 's/\s*([+\-]?[0-9]+\.?[0-9]*)\s*=.*/\1/'
+```
