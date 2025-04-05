@@ -1,7 +1,7 @@
 // I recommend using Kotlin's syntax highlighting
 
 // fun if(truth, on_true, on_false) = <native>
-// Evaluates on_true if truth > 0, on_false otherwise
+// Lazily evaluates on_true if truth > 0, on_false otherwise
 
 fun clamp(x, minx, maxx) = max(min(x, maxx), minx);
 fun is_equal(x, y)       = if(x - y, 0, if(y - x, 0, 1));
@@ -9,5 +9,9 @@ fun fibonacci(n)         = if(n, if(n - 2, fibonacci(n - 2) + fibonacci(n - 1), 
 
 var two_pi = 2 * pi;
 
+// Function and variable definitions are evaluated first in the order they appear
+//  in the input, then all free-standing expressions are computed.
+// i.e. These expressions may also be put at the top of the file.
+
 floor(pi) + clamp(two_pi, 3, 6) * is_equal(pi, pi);
-fibonacci(11);
+fibonacci(24);
