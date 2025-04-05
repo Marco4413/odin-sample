@@ -4,6 +4,7 @@ import "base:runtime" // args__
 
 import "core:flags"
 import "core:fmt"
+import "core:io"
 import "core:mem"
 import "core:os"
 import "core:path/filepath"
@@ -13,79 +14,79 @@ import lex   "lexer"
 import parse "parser"
 import run   "runner"
 
-print_node :: proc(node: ^parse.Node, current_precedence: uint = ~cast(uint)0) {
+print_node :: proc(w: io.Writer, node: ^parse.Node, current_precedence: uint = ~cast(uint)0) {
     is_ambiguous_operator :: proc(op: parse.Binop_Kind) -> bool {
         return op == .Pow
     }
 
     switch &x in node {
     case parse.Node_Number:
-        fmt.print(x)
+        fmt.wprint(w, x)
     case parse.Node_Var:
-        fmt.print(x.var_name)
+        fmt.wprint(w, x.var_name)
     case parse.Node_Unop:
         switch x.op {
-        case .Negate: fmt.print("-")
+        case .Negate: fmt.wprint(w, "-")
         }
-        print_node(x.expr)
+        print_node(w, x.expr)
     case parse.Node_Binop:
         new_precedence := parse.get_operator_precedence(x.op)
         is_ambiguous   := new_precedence > current_precedence || is_ambiguous_operator(x.op)
-        if is_ambiguous do fmt.print("(")
-        print_node(x.lhs, new_precedence)
+        if is_ambiguous do fmt.wprint(w, "(")
+        print_node(w, x.lhs, new_precedence)
         switch x.op {
-        case .Add: fmt.print(" + ")
-        case .Sub: fmt.print(" - ")
-        case .Div: fmt.print(" / ")
-        case .Mul: fmt.print(" * ")
-        case .Pow: fmt.print(" ^ ")
+        case .Add: fmt.wprint(w, " + ")
+        case .Sub: fmt.wprint(w, " - ")
+        case .Div: fmt.wprint(w, " / ")
+        case .Mul: fmt.wprint(w, " * ")
+        case .Pow: fmt.wprint(w, " ^ ")
         }
-        print_node(x.rhs, new_precedence)
-        if is_ambiguous do fmt.print(")")
+        print_node(w, x.rhs, new_precedence)
+        if is_ambiguous do fmt.wprint(w, ")")
     case parse.Node_Fun_Call:
-        fmt.print(x.func_name, "(", sep = "")
+        fmt.wprint(w, x.func_name, "(", sep = "")
 
         args_iterator := parse.node_fun_call_iterator_args(&x)
         if first_arg, ok := parse.node_fun_call_iterate_args(&args_iterator); ok {
-            print_node(first_arg)
+            print_node(w, first_arg)
             for arg in parse.node_fun_call_iterate_args(&args_iterator) {
-                fmt.print(", ")
-                print_node(arg)
+                fmt.wprint(w, ", ")
+                print_node(w, arg)
             }
         }
 
-        fmt.print(")")
+        fmt.wprint(w, ")")
     }
 }
 
-print_statement :: proc(statement: parse.Statement) {
+print_statement :: proc(w: io.Writer, statement: parse.Statement) {
     switch &x in statement {
     case parse.Statement_Expr:
-        print_node(x.expr)
+        print_node(w, x.expr)
     case parse.Statement_Var:
-        fmt.print("var ", x.var_name, " = ", sep = "")
-        print_node(x.expr)
+        fmt.wprint(w, "var ", x.var_name, " = ", sep = "")
+        print_node(w, x.expr)
     case parse.Statement_Fun:
-        fmt.print("fun ", x.fun_name, "(", sep = "")
+        fmt.wprint(w, "fun ", x.fun_name, "(", sep = "")
 
         arg_names_iterator := parse.statement_fun_iterator_args(&x)
         if first_arg_name, ok := parse.statement_fun_iterate_args(&arg_names_iterator); ok {
-            fmt.print(first_arg_name)
+            fmt.wprint(w, first_arg_name)
             for arg_name in parse.statement_fun_iterate_args(&arg_names_iterator) {
-                fmt.print(", ", arg_name, sep = "")
+                fmt.wprint(w, ", ", arg_name, sep = "")
             }
         }
 
-        fmt.print(") = ", sep = "")
-        print_node(x.expr)
+        fmt.wprint(w, ") = ", sep = "")
+        print_node(w, x.expr)
     }
 }
 
-println_statements :: proc(statements: parse.Statements) {
+println_statements :: proc(w: io.Writer, statements: parse.Statements) {
     statements_iterator := parse.statements_iterator(statements)
     for statement in parse.statements_iterate(&statements_iterator) {
-        print_statement(statement^)
-        fmt.println(";")
+        print_statement(w, statement^)
+        fmt.wprintln(w, ";")
     }
 }
 
@@ -101,10 +102,10 @@ get_line :: proc(text: string, line: u32) -> string {
     return text[cur_idx:cur_idx+new_line_offset]
 }
 
-print_cursor :: proc(loc: lex.Loc, left_pad: uint = 0) {
-    fmt.printf("%*.s", left_pad + cast(uint)(loc.char+1), "^", flush=false)
-    for _ in 1..<loc.span do fmt.print("~", flush=false)
-    fmt.println()
+print_cursor :: proc(w: io.Writer, loc: lex.Loc, left_pad: uint = 0) {
+    fmt.wprintf(w, "%*.s", left_pad + cast(uint)(loc.char+1), "^", flush=false)
+    for _ in 1..<loc.span do fmt.wprint(w, "~", flush=false)
+    fmt.wprintln(w)
 }
 
 make_os_args :: proc() -> (argv: []string) {
@@ -170,6 +171,9 @@ cli_main :: proc() -> int {
 }
 
 app_main :: proc(cli_options: CLI_Options) -> int {
+    stderr := os.stream_from_handle(os.stderr)
+    stdout := os.stream_from_handle(os.stdout)
+
     expr_source := strings.join(cli_options.expr[:], " ")
     defer delete(expr_source)
 
@@ -185,9 +189,9 @@ app_main :: proc(cli_options: CLI_Options) -> int {
     statements, parse_err := parse.parser_parse(&parser, &expr_allocator)
     if parse_err != nil {
         tok, _ := parse.parser_current_token(&parser)
-        fmt.printfln("Parse Error: {}({}:{})", parse_err, tok.loc.line+1, tok.loc.char+1)
-        fmt.printfln("'{}'", get_line(expr_source, tok.loc.line))
-        print_cursor(tok.loc, 1)
+        fmt.wprintfln(stderr, "Parse Error: {}({}:{})", parse_err, tok.loc.line+1, tok.loc.char+1)
+        fmt.wprintfln(stderr, "'{}'", get_line(expr_source, tok.loc.line))
+        print_cursor(stderr, tok.loc, 1)
         return 1
     }
 
@@ -201,12 +205,12 @@ app_main :: proc(cli_options: CLI_Options) -> int {
 
     switch x in run_err {
     case run.Runner_Error:
-        fmt.printfln("Runner Error: {}", x)
+        fmt.wprintfln(stderr, "Runner Error: {}", x)
         return 1
     case run.Localized_Runner_Error:
-        fmt.printfln("Runner Error: {}({}:{})", x.err, x.loc.line+1, x.loc.char+1)
-        fmt.printfln("'{}'", get_line(expr_source, x.loc.line))
-        print_cursor(x.loc, 1)
+        fmt.wprintfln(stderr, "Runner Error: {}({}:{})", x.err, x.loc.line+1, x.loc.char+1)
+        fmt.wprintfln(stderr, "'{}'", get_line(expr_source, x.loc.line))
+        print_cursor(stderr, x.loc, 1)
         return 1
     }
 
@@ -261,12 +265,12 @@ app_main :: proc(cli_options: CLI_Options) -> int {
         int_padding        := res_max.int_digits - res_info.int_digits
         fractional_padding := res_max.fractional_digits - res_info.fractional_digits
 
-        fmt.printf("%*s%w%*s = ",
+        fmt.wprintf(stdout, "%*s%w%*s = ",
             int_padding, "",
             x.value,
             fractional_padding, "")
-        print_node(x.expr)
-        fmt.println()
+        print_node(stdout, x.expr)
+        fmt.wprintln(stdout)
     }
 
     return 0
