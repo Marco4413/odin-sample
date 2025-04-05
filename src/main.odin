@@ -156,14 +156,16 @@ main :: proc() {
     }
 
     Result_Info :: struct {
+        // Includes the sign
         int_digits: int,
+        // Includes the dot
         fractional_digits: int,
     }
 
+    res_max: Result_Info
     res_infos := make([]Result_Info, len(res))
     defer delete(res_infos)
 
-    max_int_digits, max_fractional_digits: int
     {
         builder: strings.Builder
         strings.builder_init(&builder)
@@ -185,15 +187,15 @@ main :: proc() {
             if dp_idx < 0 {
                 int_digits = full_len
             } else {
-                fractional_digits = full_len - 1 - dp_idx
-                int_digits        = full_len - 1 - fractional_digits
+                fractional_digits = full_len - dp_idx
+                int_digits        = full_len - fractional_digits
             }
 
             res_infos[idx].int_digits        = int_digits
             res_infos[idx].fractional_digits = fractional_digits
 
-            if int_digits > max_int_digits do max_int_digits = int_digits
-            if fractional_digits > max_fractional_digits do max_fractional_digits = fractional_digits
+            if int_digits > res_max.int_digits do res_max.int_digits = int_digits
+            if fractional_digits > res_max.fractional_digits do res_max.fractional_digits = fractional_digits
         }
     }
 
@@ -201,11 +203,8 @@ main :: proc() {
     for x, idx in res {
         res_info := res_infos[idx]
 
-        missing_dot_offset := 0
-        if max_fractional_digits > 0 && res_info.fractional_digits <= 0 do missing_dot_offset = 1
-
-        int_padding        := max_int_digits - res_info.int_digits
-        fractional_padding := max_fractional_digits - res_info.fractional_digits + missing_dot_offset
+        int_padding        := res_max.int_digits - res_info.int_digits
+        fractional_padding := res_max.fractional_digits - res_info.fractional_digits
 
         fmt.printf("%*s%w%*s = ",
             int_padding, "",
