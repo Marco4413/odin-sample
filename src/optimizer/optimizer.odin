@@ -60,13 +60,51 @@ needs_optimizing :: proc(settings: Optimization_Settings) -> bool {
         }
     case parser.Node_Binop:
         if settings.precompute_const_expr {
-            _, is_lhs_const := x.lhs.(parser.Node_Number)
-            _, is_rhs_const := x.rhs.(parser.Node_Number)
+            lhs_as_const, is_lhs_const := x.lhs.(parser.Node_Number)
+            rhs_as_const, is_rhs_const := x.rhs.(parser.Node_Number)
             if is_lhs_const && is_rhs_const {
                 res, err := runner.exec_expr(nil, expr)
                 assert(err == nil, "exec_expr failed when computing const-expr")
                 expr^ = res
                 return true
+            } else if is_lhs_const {
+                #partial switch x.op {
+                case .Add:
+                    // handle '0 + b'
+                    if lhs_as_const == 0 {
+                        expr^ = x.rhs^
+                        return true
+                    }
+                case .Mul:
+                    // handle '1 * b'
+                    if lhs_as_const == 1 {
+                        expr^ = x.rhs^
+                        return true
+                    }
+                }
+            } else if is_rhs_const {
+                #partial switch x.op {
+                case .Add, .Sub:
+                    // handle 'a +- 0'
+                    if rhs_as_const == 0 {
+                        expr^ = x.lhs^
+                        return true
+                    }
+                case .Mul, .Div:
+                    // handle 'a */ 1'
+                    if rhs_as_const == 1 {
+                        expr^ = x.lhs^
+                        return true
+                    }
+                }
+            } else if x.op == .Sub {
+                // handle 'foo - foo'
+                lhs_as_var, is_lhs_var := x.lhs.(parser.Node_Var)
+                rhs_as_var, is_rhs_var := x.rhs.(parser.Node_Var)
+                if is_lhs_var && is_rhs_var && lhs_as_var.var_name == rhs_as_var.var_name {
+                    expr^ = 0
+                    return true
+                }
             }
         }
 
