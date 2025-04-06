@@ -11,6 +11,7 @@ import "core:path/filepath"
 import "core:strings"
 
 import lex   "lexer"
+import       "optimizer"
 import parse "parser"
 import run   "runner"
 
@@ -124,7 +125,11 @@ main :: proc() {
 // https://odin-lang.org/docs/overview/#struct-field-tags
 CLI_Options :: struct {
     expr: [dynamic]string `args:"name=varg,required,variadic" usage:"The expression to be ran."`,
-    optimize_unary: bool `args:"name=opt-unary" usage:"Optimizes unary expressions like '--foo' to 'foo'."`,
+    print_statements: bool `usage:"Print all statements to stdout without running (useful to check optimizations)."`,
+    optimize_all: bool `args:"name=opt-all" usage:"Enables all optimizations."`,
+    optimize_double_negation_elision: bool `args:"name=opt-double-negation-elision" usage:"Optimizes '--foo' to 'foo'."`,
+    optimize_sum_inherits_unary_sign: bool `args:"name=opt-sum-inherits-unary-sign" usage:"Optimizes 'a + -b' to 'a - b'."`,
+    optimize_precompute_const_expr: bool `args:"name=opt-constexpr" usage:"Optimizes constant expressions by precomputing them."`,
 }
 
 cli_main :: proc() -> int {
@@ -180,7 +185,6 @@ app_main :: proc(cli_options: CLI_Options) -> int {
     parser: parse.Parser
     parse.parser_init(&parser, expr_source)
     defer parse.parser_destroy(&parser)
-    parser.optimize_unary_operators = cli_options.optimize_unary
 
     expr_allocator: mem.Dynamic_Arena
     mem.dynamic_arena_init(&expr_allocator)
@@ -193,6 +197,24 @@ app_main :: proc(cli_options: CLI_Options) -> int {
         fmt.wprintfln(stderr, "'{}'", get_line(expr_source, tok.loc.line))
         print_cursor(stderr, tok.loc, 1)
         return 1
+    }
+
+    optimizations: optimizer.Optimization_Settings
+    if cli_options.optimize_all {
+        optimizations = optimizer.Optimize_All
+    } else {
+        // TODO: Use reflection?
+        optimizations.double_negation_elision = cli_options.optimize_double_negation_elision
+        optimizations.sum_inherits_unary_sign = cli_options.optimize_sum_inherits_unary_sign
+        optimizations.precompute_const_expr   = cli_options.optimize_precompute_const_expr
+    }
+    if optimizer.needs_optimizing(optimizations) {
+        optimizer.optimize(&statements, optimizations)
+    }
+
+    if cli_options.print_statements {
+        println_statements(stdout, statements)
+        return 0
     }
 
     global_scope: run.Global_Scope

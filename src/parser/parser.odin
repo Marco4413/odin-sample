@@ -6,9 +6,6 @@ import "core:strings"
 import lex "../lexer"
 
 Parser :: struct {
-    // settings
-    optimize_unary_operators: bool,
-
     lexer: lex.Lexer,
     cur_tok: lex.Token,
     cur_tok_err: lex.Error,
@@ -58,17 +55,6 @@ parser_current_token :: proc(self: ^Parser) -> (tok: lex.Token, err: lex.Error) 
         // Unary minus
         parser_consume_token(self)
         expr := parser_parse_atom(self) or_return
-
-        if self.optimize_unary_operators {
-            #partial switch x in expr {
-            case Node_Unop:
-                if x.op == .Negate {
-                    // --foo == foo
-                    node = x.expr
-                    return
-                }
-            }
-        }
 
         unop_node: Node_Unop
         unop_node.op   = .Negate
