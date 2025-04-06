@@ -109,6 +109,18 @@ needs_optimizing :: proc(settings: Optimization_Settings) -> bool {
         }
 
         if settings.sum_inherits_unary_sign {
+            // Check to handle '-a + b'
+            if x.op == .Add {
+                lhs_as_unop, is_lhs_unop := x.lhs.(parser.Node_Unop)
+                rhs_as_unop, is_rhs_unop := x.rhs.(parser.Node_Unop)
+                if is_lhs_unop && lhs_as_unop.op == .Negate {
+                    if !is_rhs_unop || rhs_as_unop.op != .Negate {
+                        // Turn '-a + b' into 'b + -a'
+                        x.lhs, x.rhs = x.rhs, x.lhs
+                    }
+                }
+            }
+
             if x.op == .Add || x.op == .Sub {
                 #partial switch y in x.rhs {
                 case parser.Node_Unop:
