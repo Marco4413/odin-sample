@@ -30,11 +30,10 @@ needs_optimizing :: proc(settings: Optimization_Settings) -> bool {
 }
 
 // expr must not be a cyclic graph (the default parser does not create one).
-optimize_expr :: proc(expr: ^parser.Node, settings: Optimization_Settings) {
+// returns true if an optimization was applied
+@private optimize_expr_once :: proc(expr: ^parser.Node, settings: Optimization_Settings) -> bool {
     switch &x in expr {
-    case parser.Node_Number:
     case parser.Node_Unop:
-        optimize_expr(x.expr, settings)
         if settings.double_negation_elision {
             if x.op == .Negate {
                 #partial switch y in x.expr {
@@ -42,6 +41,7 @@ optimize_expr :: proc(expr: ^parser.Node, settings: Optimization_Settings) {
                     if y.op == .Negate {
                         // --foo == foo
                         expr^ = y.expr^
+                        return true
                     }
                 }
             }
@@ -54,12 +54,11 @@ optimize_expr :: proc(expr: ^parser.Node, settings: Optimization_Settings) {
                     res, err := runner.exec_expr(nil, expr)
                     assert(err == nil, "exec_expr failed when computing const-expr")
                     expr^ = res
+                    return true
                 }
             }
         }
     case parser.Node_Binop:
-        optimize_expr(x.lhs, settings)
-        optimize_expr(x.rhs, settings)
         if settings.precompute_const_expr {
             _, is_lhs_const := x.lhs.(parser.Node_Number)
             _, is_rhs_const := x.rhs.(parser.Node_Number)
@@ -67,6 +66,7 @@ optimize_expr :: proc(expr: ^parser.Node, settings: Optimization_Settings) {
                 res, err := runner.exec_expr(nil, expr)
                 assert(err == nil, "exec_expr failed when computing const-expr")
                 expr^ = res
+                return true
             }
         }
 
@@ -77,13 +77,30 @@ optimize_expr :: proc(expr: ^parser.Node, settings: Optimization_Settings) {
                     if y.op == .Negate {
                         x.op  = .Add if x.op == .Sub else .Sub
                         x.rhs = y.expr
+                        return true
                     }
                 }
             }
         }
-    case parser.Node_Var:
-    case parser.Node_Fun_Call:
+    case parser.Node_Number, parser.Node_Var, parser.Node_Fun_Call:
     }
+
+    return false
+}
+
+// expr must not be a cyclic graph (the default parser does not create one).
+optimize_expr :: proc(expr: ^parser.Node, settings: Optimization_Settings) {
+    switch x in expr {
+    case parser.Node_Unop:
+        optimize(x.expr, settings)
+    case parser.Node_Binop:
+        optimize(x.lhs, settings)
+        optimize(x.rhs, settings)
+    case parser.Node_Number, parser.Node_Var, parser.Node_Fun_Call:
+    }
+
+    // Optimize until no optimization can be done
+    for optimize_expr_once(expr, settings) {}
 }
 
 optimize_statement :: proc(statement: ^parser.Statement, settings: Optimization_Settings) {
