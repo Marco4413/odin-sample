@@ -31,6 +31,7 @@ Expr_Result :: struct {
     value: Result,
 }
 
+// scope may be nil if the tree represented by expr is a constant expression (operations on numbers)
 exec_expr :: proc(scope: ^Fun_Scope, expr: ^parser.Node) -> (res: Result, err: Error) {
     if expr == nil {
         err = .Nil_Node
@@ -41,6 +42,7 @@ exec_expr :: proc(scope: ^Fun_Scope, expr: ^parser.Node) -> (res: Result, err: E
     case parser.Node_Number:
         res = x
     case parser.Node_Var:
+        assert(scope != nil, "non const-expr passed to exec_expr with nil scope (var usage found)")
         var, found := scope.local_variables[x.var_name]
         if !found do var, found = scope.global.variables[x.var_name]
         if !found {
@@ -62,6 +64,7 @@ exec_expr :: proc(scope: ^Fun_Scope, expr: ^parser.Node) -> (res: Result, err: E
         case .Pow: res = math.pow((exec_expr(scope, x.lhs) or_return), (exec_expr(scope, x.rhs) or_return))
         }
     case parser.Node_Fun_Call:
+        assert(scope != nil, "non const-expr passed to exec_expr with nil scope (fun call found)")
         fun, found := scope.global.functions[x.func_name]
         if !found {
             err = Localized_Runner_Error{ .Undefined_Function, x.loc }
