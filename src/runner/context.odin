@@ -51,7 +51,7 @@ Fun_Scope :: struct {
 
 fun_scope_init :: proc(self: ^Fun_Scope, global: ^Global_Scope, allocator := context.allocator) {
     context.allocator = allocator
-    assert(global != nil)
+    assert(global != nil, "passed global scope reference is nil")
     self.global = global
     self.local_variables = make(Var_Map)
 }

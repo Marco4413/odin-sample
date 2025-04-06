@@ -105,7 +105,7 @@ exec_expr :: proc(scope: ^Fun_Scope, expr: ^parser.Node) -> (res: Result, err: E
         }
 
         if !next_arg_ok do break
-        assert(len(next_arg_name) > 0)
+        assert(len(next_arg_name) > 0, "function argument name is an empty string")
         fun_scope_set_local_variable(&callee_scope, next_arg_name, (exec_expr(caller_scope, next_arg) or_return))
     }
 

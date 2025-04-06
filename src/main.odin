@@ -142,7 +142,7 @@ cli_main :: proc() -> int {
     cli_options: CLI_Options
     defer delete(cli_options.expr)
 
-    assert(len(os_args) > 0, "Missing program path.")
+    assert(len(os_args) > 0, "missing program path")
     program := filepath.base(os_args[0])
     flags_style := flags.Parsing_Style.Unix
 

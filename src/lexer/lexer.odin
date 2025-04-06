@@ -207,7 +207,7 @@ lexer_next :: proc(self: ^Lexer) -> (tok: Token, err: Error) {
         }
     
         if self.loc.line == tok.loc.line {
-            assert(self.loc.char >= tok.loc.char)
+            assert(self.loc.char >= tok.loc.char, "somehow the lexer went backwards during tokenization")
             tok.loc.span = self.loc.char - tok.loc.char
         }
     
