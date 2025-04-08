@@ -15,7 +15,7 @@ import       "optimizer"
 import parse "parser"
 import run   "runner"
 
-print_node :: proc(w: io.Writer, node: ^parse.Node, current_precedence: uint = ~cast(uint)0) {
+print_node :: proc(w: io.Writer, node: ^parse.Node, current_precedence: uint = 0) {
     is_ambiguous_operator :: proc(op: parse.Binop_Kind) -> bool {
         return op == .Pow
     }
@@ -32,7 +32,7 @@ print_node :: proc(w: io.Writer, node: ^parse.Node, current_precedence: uint = ~
         print_node(w, x.expr)
     case parse.Node_Binop:
         new_precedence := parse.get_operator_precedence(x.op)
-        is_ambiguous   := new_precedence > current_precedence || is_ambiguous_operator(x.op)
+        is_ambiguous   := new_precedence < current_precedence || is_ambiguous_operator(x.op)
         if is_ambiguous do fmt.wprint(w, "(")
         print_node(w, x.lhs, new_precedence)
         switch x.op {
@@ -42,7 +42,7 @@ print_node :: proc(w: io.Writer, node: ^parse.Node, current_precedence: uint = ~
         case .Mul: fmt.wprint(w, " * ")
         case .Pow: fmt.wprint(w, " ^ ")
         }
-        print_node(w, x.rhs, new_precedence)
+        print_node(w, x.rhs, new_precedence+1)
         if is_ambiguous do fmt.wprint(w, ")")
     case parse.Node_Fun_Call:
         fmt.wprint(w, x.func_name, "(", sep = "")
